@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# Uncomment the line below if you have a .zim file over 100MB:
+# *.zim
