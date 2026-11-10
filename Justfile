@@ -2,6 +2,10 @@
 build:
     go build -ldflags="-s -w" -o conj main.go
 
+# Run tests
+test:
+    go test -v ./...
+
 # Cross-compile a static Linux aarch64 binary if your second machine runs Linux
 build-linux-arm64:
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o conj-linux-arm64 main.go

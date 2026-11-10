@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,14 +32,14 @@ type VerbEntry struct {
 
 var elisionPrefixes = []string{
 	"qu'elles'", "qu'ils'", "qu'elle'", "qu'il'", "qu'on'",
-	"d'", "l'", "s'", "qu'", "j'", "n'", "m'", "t'",
+	"d'", "l'", "s'", "c'", "qu'", "j'", "n'", "m'", "t'",
 }
 
 func cleanInput(raw string) string {
 	w := strings.TrimSpace(strings.ToLower(raw))
 	w = strings.ReplaceAll(w, "’", "'")
 	for _, p := range elisionPrefixes {
-		if strings.HasPrefix(w, p) && len(w) > len(p) {
+		if strings.HasPrefix(w, p) {
 			w = w[len(p):]
 			break
 		}
@@ -74,6 +75,47 @@ func queryVerb(db *sql.DB, inf string) (*VerbEntry, error) {
 		Template:   tmpl,
 		Moods:      moods,
 	}, nil
+}
+
+func findMatchingInfinitives(db *sql.DB, word string) ([]string, error) {
+	seen := make(map[string]bool)
+	var infinitives []string
+
+	var exactInf string
+	if err := db.QueryRow("SELECT infinitive FROM verbs WHERE infinitive = ?", word).Scan(&exactInf); err == nil {
+		seen[exactInf] = true
+		infinitives = append(infinitives, exactInf)
+	}
+
+	rows, err := db.Query("SELECT infinitive FROM forms WHERE form = ? ORDER BY infinitive", word)
+	if err != nil {
+		return infinitives, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var inf string
+		if err := rows.Scan(&inf); err == nil && !seen[inf] {
+			seen[inf] = true
+			infinitives = append(infinitives, inf)
+		}
+	}
+	return infinitives, rows.Err()
+}
+
+func lookupVerbs(db *sql.DB, word string) ([]*VerbEntry, error) {
+	infinitives, err := findMatchingInfinitives(db, word)
+	if err != nil && len(infinitives) == 0 {
+		return nil, err
+	}
+
+	var entries []*VerbEntry
+	for _, inf := range infinitives {
+		if entry, err := queryVerb(db, inf); err == nil {
+			entries = append(entries, entry)
+		}
+	}
+	return entries, nil
 }
 
 const dbName = "verbs.db"
@@ -114,60 +156,9 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		return
-	}
-	word := cleanInput(os.Args[1])
-	if word == "" {
-		return
-	}
-
-	dbPath := findDB()
-	if dbPath == "" {
-		return
-	}
-
-	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
-	// Find all matching infinitives (exact infinitive match first, then inflected form matches)
-	seen := make(map[string]bool)
-	var infinitives []string
-
-	var exactInf string
-	if err := db.QueryRow("SELECT infinitive FROM verbs WHERE infinitive = ?", word).Scan(&exactInf); err == nil {
-		seen[exactInf] = true
-		infinitives = append(infinitives, exactInf)
-	}
-
-	rows, err := db.Query("SELECT infinitive FROM forms WHERE form = ? ORDER BY infinitive", word)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var inf string
-			if err := rows.Scan(&inf); err == nil && !seen[inf] {
-				seen[inf] = true
-				infinitives = append(infinitives, inf)
-			}
-		}
-	}
-
-	if len(infinitives) == 0 {
-		return
-	}
-
-	var entries []*VerbEntry
-	for _, inf := range infinitives {
-		if entry, err := queryVerb(db, inf); err == nil {
-			entries = append(entries, entry)
-		}
-	}
+func renderHTML(word string, entries []*VerbEntry) string {
 	if len(entries) == 0 {
-		return
+		return ""
 	}
 
 	openByDefault := map[string]bool{
@@ -233,5 +224,41 @@ func main() {
 	}
 
 	sb.WriteString(`</div>`)
-	fmt.Println(sb.String())
+	return sb.String()
+}
+
+func run(args []string, out io.Writer) error {
+	if len(args) < 2 {
+		return nil
+	}
+	word := cleanInput(args[1])
+	if word == "" {
+		return nil
+	}
+
+	dbPath := findDB()
+	if dbPath == "" {
+		return nil
+	}
+
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	entries, err := lookupVerbs(db, word)
+	if err != nil || len(entries) == 0 {
+		return err
+	}
+
+	rendered := renderHTML(word, entries)
+	if rendered != "" {
+		fmt.Fprintln(out, rendered)
+	}
+	return nil
+}
+
+func main() {
+	_ = run(os.Args, os.Stdout)
 }
