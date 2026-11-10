@@ -33,19 +33,24 @@ This installs the `conj` binary and the pre-built verb database. Then [configure
 └──────────────┘     └────────────────┘     └──────────────┘     └─────────────────┘
 ```
 
-1. **`build_db.py`** uses the [verbecc](https://github.com/bretttolbert/verbecc) library to conjugate every known French verb and stores all conjugations + a reverse-lookup index of inflected forms into `verbs.db` (SQLite).
-2. **`conj`** (compiled from `main.go`) is a standalone binary that takes a word as a CLI argument, queries `verbs.db`, and prints styled HTML to stdout.
+1. **`scripts/build_db.py`** uses the [verbecc](https://github.com/bretttolbert/verbecc) library to conjugate every known French verb and stores all conjugations + a reverse-lookup index of inflected forms into `verbs.db` (SQLite).
+2. **`conj`** (compiled from `cmd/conj/main.go`) is a standalone binary that takes a word as a CLI argument, queries `verbs.db`, and prints styled HTML to stdout.
 3. **GoldenDict-ng** calls `conj` as an external program and renders the HTML output inline alongside your other dictionaries.
 
 ## Prerequisites
 
+### For End Users
+All you need is [GoldenDict-ng](https://github.com/xiaoyifang/goldendict-ng) (`brew install --cask goldendict-ng` on macOS or via [installer](https://github.com/xiaoyifang/goldendict-ng/releases)). Pre-built binaries are completely self-contained with zero runtime dependencies.
+
+### For Building From Source
+If you want to build the binary and generate the database yourself:
+
 | Tool                             | macOS                               | Windows                                                                                  |
 | -------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------- |
 | **Go** ≥ 1.21                    | `brew install go`                   | [Download installer](https://go.dev/dl/)                                                 |
-| **Python** ≥ 3.10                | `brew install python`               | [Download installer](https://www.python.org/downloads/)                                  |
+| **Python** ≥ 3.10 (db build)     | `brew install python`               | [Download installer](https://www.python.org/downloads/)                                  |
 | **uv** (Python package manager)  | `brew install uv`                   | `pip install uv` or [installer](https://docs.astral.sh/uv/getting-started/installation/) |
 | **just** (optional, task runner) | `brew install just`                 | `cargo install just` or [prebuilt binaries](https://github.com/casey/just/releases)      |
-| **GoldenDict-ng**                | `brew install --cask goldendict-ng` | [Download installer](https://github.com/xiaoyifang/goldendict-ng/releases)               |
 
 ## Setup
 
@@ -74,11 +79,11 @@ uv venv .venv
 
 # macOS / Linux
 uv pip install --python .venv/bin/python verbecc
-./.venv/bin/python build_db.py
+./.venv/bin/python scripts/build_db.py
 
 # Windows (PowerShell)
 uv pip install --python .venv\Scripts\python.exe verbecc
-.\.venv\Scripts\python.exe build_db.py
+.\.venv\Scripts\python.exe scripts\build_db.py
 ```
 
 This takes a few minutes. You'll see progress output like:
@@ -103,16 +108,24 @@ just build
 
 ```bash
 # macOS / Linux
-go build -ldflags="-s -w" -o conj main.go
+go build -ldflags="-s -w" -o conj ./cmd/conj
 
 # Windows (PowerShell)
-go build -ldflags="-s -w" -o conj.exe main.go
+go build -ldflags="-s -w" -o conj.exe ./cmd/conj
 ```
 
 > [!IMPORTANT]
 > The `conj` binary and `verbs.db` must be in the **same directory**. The binary locates the database relative to its own path at runtime.
 
-### Step 4: Verify It Works
+### Step 4: Run Tests
+
+```bash
+just test
+# or
+go test -v ./...
+```
+
+### Step 5: Verify It Works
 
 ```bash
 # macOS / Linux
@@ -184,47 +197,19 @@ The Go binary can be cross-compiled for any platform without needing a C compile
 
 ```bash
 # Windows (from macOS/Linux)
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o conj.exe main.go
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o conj.exe ./cmd/conj
 
 # Linux ARM64 (e.g., Raspberry Pi, cloud VMs)
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o conj-linux-arm64 main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o conj-linux-arm64 ./cmd/conj
 
 # Linux x86_64
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o conj-linux-amd64 main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o conj-linux-amd64 ./cmd/conj
 
 # macOS Intel
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o conj-darwin-amd64 main.go
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o conj-darwin-amd64 ./cmd/conj
 ```
 
 Copy both the compiled binary **and** `verbs.db` to the target machine.
-
-## Alternative: Python-Only Mode (`conj.py`)
-
-If you don't want to pre-build the database, `conj.py` is a standalone Python script that conjugates verbs on-the-fly using `verbecc` and `simplemma`. It's slower (~2-3 seconds per lookup vs. <10ms for the Go binary) but requires no build step.
-
-### Setup
-
-```bash
-uv venv .venv
-
-# macOS / Linux
-uv pip install --python .venv/bin/python verbecc simplemma
-
-# Windows
-uv pip install --python .venv\Scripts\python.exe verbecc simplemma
-```
-
-### GoldenDict-ng Configuration
-
-| Field                 | Value                                                                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Type**              | `Html`                                                                                                |
-| **Name**              | `French Conjugation (Python)`                                                                         |
-| **Command (macOS)**   | `/full/path/to/Dictionaries/.venv/bin/python /full/path/to/Dictionaries/conj.py %GDWORD%`             |
-| **Command (Windows)** | `C:\full\path\to\Dictionaries\.venv\Scripts\python.exe C:\full\path\to\Dictionaries\conj.py %GDWORD%` |
-
-> [!WARNING]
-> The Python version loads the verbecc engine on every invocation, so there is a noticeable delay (~2-3s) per lookup. The Go binary + SQLite approach is **strongly recommended** for daily use.
 
 ## Morphology Support
 
@@ -240,17 +225,24 @@ To enable this in GoldenDict-ng:
 
 ```
 Dictionaries/
-├── main.go          # Go binary source — CLI lookup against verbs.db
-├── go.mod / go.sum  # Go module dependencies
-├── build_db.py      # Python script — generates verbs.db from verbecc
-├── conj.py          # Python script — standalone on-the-fly conjugator
-├── conj             # Compiled Go binary (macOS ARM64, not committed)
-├── verbs.db         # SQLite database with all conjugations (generated)
-├── Justfile         # Task runner recipes (build, regen-db)
-├── Morphology/      # Hunspell morphology files for GoldenDict-ng
+├── cmd/
+│   └── conj/
+│       ├── main.go          # Go CLI binary entry point
+│       └── main_test.go     # Unit & integration tests
+├── scripts/
+│   └── build_db.py          # Python database generator (verbecc -> SQLite)
+├── Morphology/              # Hunspell morphology files for GoldenDict-ng
 │   ├── fr_FR.aff
 │   └── fr_FR.dic
-└── verbecc.log      # Build log from verbecc engine initialization
+├── .github/
+│   └── workflows/
+│       └── release.yml      # GitHub Actions release & packaging workflow
+├── .goreleaser.yaml         # Cross-platform release packaging
+├── .gitignore
+├── go.mod / go.sum          # Go module dependencies
+├── Justfile                 # Task runner recipes (build, test, regen-db)
+├── README.md                # Documentation
+└── verbs.db                 # SQLite database (~65 MB, generated)
 ```
 
 ## Troubleshooting
@@ -262,7 +254,6 @@ Dictionaries/
 | `verbs.db` not found               | Run `just regen-db` or follow Step 2 to rebuild the database.                                                                           |
 | Permission denied (macOS)          | Run `chmod +x conj` to make the binary executable. On macOS, you may also need to allow it in **System Settings → Privacy & Security**. |
 | Windows Defender blocks `conj.exe` | Add an exception for the binary, or run `go build` locally on the Windows machine so it isn't flagged as an unknown download.           |
-| Python `conj.py` is slow           | This is expected (~2-3s). Use the Go binary + `verbs.db` for fast lookups.                                                              |
 | `uv` not found                     | Install with `brew install uv` (macOS) or `pip install uv` (Windows).                                                                   |
 
 ## License

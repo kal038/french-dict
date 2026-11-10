@@ -9,7 +9,7 @@ before:
 builds:
   - id: conj
     binary: conj
-    main: ./main.go
+    main: ./cmd/conj
     ldflags:
       - -s -w
     env:

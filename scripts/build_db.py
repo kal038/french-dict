@@ -7,7 +7,8 @@ os = __import__('os')
 logging.disable(logging.CRITICAL)
 from verbecc import CompleteConjugator
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verbs.db")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.environ.get("CONJ_DB_PATH") or os.path.join(REPO_ROOT, "verbs.db")
 
 SKIP_TOKENS = {
     "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
@@ -16,7 +17,7 @@ SKIP_TOKENS = {
 
 PREFIXES = (
     "qu'elles'", "qu'ils'", "qu'elle'", "qu'il'", "qu'on'",
-    "qu'", "j'", "s'", "m'", "t'", "n'", "l'", "d'"
+    "qu'", "j'", "s'", "c'", "m'", "t'", "n'", "l'", "d'"
 )
 
 def extract_verb_tokens(line: str, out_set: set):

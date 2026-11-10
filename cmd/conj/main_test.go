@@ -509,11 +509,18 @@ func TestRun(t *testing.T) {
 // TestIntegrationWithRealDB tests against the local verbs.db if present.
 func TestIntegrationWithRealDB(t *testing.T) {
 	// Look for verbs.db in workspace root first, or via findDB()
-	absDB, err := filepath.Abs("verbs.db")
-	if err == nil && fileExists(absDB) {
-		origEnv := os.Getenv("CONJ_DB_PATH")
-		defer os.Setenv("CONJ_DB_PATH", origEnv)
-		os.Setenv("CONJ_DB_PATH", absDB)
+	candidatePaths := []string{
+		"verbs.db",
+		"../../verbs.db",
+		"../verbs.db",
+	}
+	for _, p := range candidatePaths {
+		if abs, err := filepath.Abs(p); err == nil && fileExists(abs) {
+			origEnv := os.Getenv("CONJ_DB_PATH")
+			defer os.Setenv("CONJ_DB_PATH", origEnv)
+			os.Setenv("CONJ_DB_PATH", abs)
+			break
+		}
 	}
 
 	dbPath := findDB()

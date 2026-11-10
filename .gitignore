@@ -6,9 +6,9 @@ __pycache__/
 # *.zim
 
 # Build artifacts
-conj
-conj-*
-conj.exe
-verbs.db
-verbecc.log
-dist/
+/conj
+/conj-*
+/conj.exe
+/verbs.db
+/verbecc.log
+/dist/

@@ -34,7 +34,7 @@ jobs:
         run: |
           uv venv .venv
           uv pip install --python .venv/bin/python verbecc
-          .venv/bin/python build_db.py
+          .venv/bin/python scripts/build_db.py
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
