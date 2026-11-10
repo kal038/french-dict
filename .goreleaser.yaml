@@ -63,9 +63,4 @@ brews:
       (share/"french-dict").install "verbs.db"
     test: |
       assert_match(/indicatif/, shell_output("#{bin}/conj avoir"))
-    extra_packages:
-      - on_macos:
-          - name: goldendict-ng
-            type: cask
-            optional: true
 
