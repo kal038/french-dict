@@ -1,0 +1,71 @@
+version: 2
+
+project_name: french-dict
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: conj
+    binary: conj
+    main: ./main.go
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - verbs.db
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: kal038
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/kal038/french-dict"
+    description: "Fast offline French verb conjugator with reverse lookup — all moods and tenses from a single word"
+    license: "GPL-3.0"
+    install: |
+      bin.install "conj"
+      (share/"french-dict").install "verbs.db"
+    test: |
+      assert_match(/indicatif/, shell_output("#{bin}/conj avoir"))
+    extra_packages:
+      - on_macos:
+          - name: goldendict-ng
+            type: cask
+            optional: true
+

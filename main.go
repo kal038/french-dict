@@ -76,6 +76,44 @@ func queryVerb(db *sql.DB, inf string) (*VerbEntry, error) {
 	}, nil
 }
 
+const dbName = "verbs.db"
+
+// findDB returns the path to verbs.db by checking, in order:
+//  1. $CONJ_DB_PATH environment variable (explicit override)
+//  2. Same directory as the executable (manual / zip installs)
+//  3. ../share/french-dict/verbs.db relative to the executable (Homebrew / package managers)
+func findDB() string {
+	// 1. Explicit env override
+	if p := os.Getenv("CONJ_DB_PATH"); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	exeDir := filepath.Dir(exePath)
+
+	// 2. Same directory as binary
+	if p := filepath.Join(exeDir, dbName); fileExists(p) {
+		return p
+	}
+
+	// 3. Homebrew / package-manager layout: <prefix>/bin/conj → <prefix>/share/french-dict/verbs.db
+	if p := filepath.Join(exeDir, "..", "share", "french-dict", dbName); fileExists(p) {
+		return p
+	}
+
+	return ""
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		return
@@ -85,11 +123,10 @@ func main() {
 		return
 	}
 
-	exePath, err := os.Executable()
-	if err != nil {
+	dbPath := findDB()
+	if dbPath == "" {
 		return
 	}
-	dbPath := filepath.Join(filepath.Dir(exePath), "verbs.db")
 
 	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
 	if err != nil {

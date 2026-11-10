@@ -4,3 +4,11 @@ __pycache__/
 .DS_Store
 # Uncomment the line below if you have a .zim file over 100MB:
 # *.zim
+
+# Build artifacts
+conj
+conj-*
+conj.exe
+verbs.db
+verbecc.log
+dist/

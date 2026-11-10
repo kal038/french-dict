@@ -11,6 +11,18 @@ A fast, offline French verb conjugator that integrates with [GoldenDict-ng](http
 - **Smart input cleaning** — automatically strips French elisions (`l'`, `s'`, `j'`, `qu'`, etc.)
 - **Cross-platform** — works on macOS (M chips/Intel)/Windows/Linux (ARM/x86)
 
+## Quick Install (Homebrew)
+
+```bash
+brew tap kal038/tap
+brew install french-dict
+```
+
+This installs the `conj` binary and the pre-built verb database. Then [configure GoldenDict-ng](#integrating-with-goldendict-ng) to use it.
+
+> [!TIP]
+> Don't use Homebrew? Grab the latest binary + database from the [Releases page](https://github.com/kal038/french-dict/releases), extract, and you're ready to go.
+
 ## How It Works
 
 ```
